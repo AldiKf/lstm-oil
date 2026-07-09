@@ -465,20 +465,30 @@ else:
 
         submitted = st.form_submit_button("🔮 Bangun Skenario")
 
-    if not submitted:
+    # Simpan ke session_state supaya skenario TETAP ada walau ada rerun lain
+    # (misalnya saat tombol "Jalankan Ramalan ke Depan" di bawah diklik).
+    if submitted:
+        manual_values = {
+            'brent_price': brent_price_in,
+            'wti_price': wti_price_in,
+            'dxy_index': dxy_in,
+            'vix': vix_in,
+            'gpr_index': gpr_in,
+            'event_severity': event_severity_in,
+            'event_flag': 1 if event_flag_in else 0,
+        }
+        st.session_state['manual_seed_df'] = build_flat_seed(manual_values)
+
+    if st.session_state.get('manual_seed_df') is None:
         st.info("Isi form di atas lalu klik **Bangun Skenario** untuk melanjutkan.")
         st.stop()
 
-    manual_values = {
-        'brent_price': brent_price_in,
-        'wti_price': wti_price_in,
-        'dxy_index': dxy_in,
-        'vix': vix_in,
-        'gpr_index': gpr_in,
-        'event_severity': event_severity_in,
-        'event_flag': 1 if event_flag_in else 0,
-    }
-    manual_seed_df = build_flat_seed(manual_values)
+    manual_seed_df = st.session_state['manual_seed_df']
+
+    if st.button("🔄 Reset Skenario"):
+        st.session_state['manual_seed_df'] = None
+        st.rerun()
+
     next_date, next_pred = forecast_next_step(manual_seed_df, model, scaler)
 
 # =========================================================
@@ -551,9 +561,16 @@ if st.button("▶️ Jalankan Ramalan ke Depan"):
             assumed_event_severity=assumed_severity,
             assumed_event_flag=1 if assumed_flag else 0
         )
+        st.session_state['forecast_df'] = forecast_df
+        st.session_state['forecast_days'] = days_ahead
+        st.session_state['forecast_mode'] = mode
+
+if st.session_state.get('forecast_df') is not None:
+    forecast_df = st.session_state['forecast_df']
+    days_ahead_shown = st.session_state.get('forecast_days', days_ahead)
 
     fig_fc = go.Figure()
-    if mode == "📤 Upload CSV":
+    if st.session_state.get('forecast_mode') == "📤 Upload CSV" and df_feat is not None:
         recent_hist = df_feat['brent_price'].iloc[-60:]
         fig_fc.add_trace(go.Scatter(
             x=recent_hist.index, y=recent_hist.values,
@@ -561,7 +578,7 @@ if st.button("▶️ Jalankan Ramalan ke Depan"):
         ))
     fig_fc.add_trace(go.Scatter(
         x=forecast_df.index, y=forecast_df['predicted'],
-        name=f"Ramalan {days_ahead} hari", line=dict(color="#d4a017", width=2, dash="dot"),
+        name=f"Ramalan {days_ahead_shown} hari", line=dict(color="#d4a017", width=2, dash="dot"),
         mode="lines+markers"
     ))
     fig_fc.update_layout(template="plotly_dark", height=460, hovermode="x unified")
@@ -572,7 +589,7 @@ if st.button("▶️ Jalankan Ramalan ke Depan"):
     st.download_button(
         "⬇️ Unduh Ramalan (CSV)",
         data=csv_fc,
-        file_name=f"brent_forecast_{days_ahead}d.csv",
+        file_name=f"brent_forecast_{days_ahead_shown}d.csv",
         mime="text/csv"
     )
 
