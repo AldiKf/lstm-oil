@@ -1,14 +1,3 @@
-"""
-Dashboard Prediksi Harga Minyak Mentah (Brent) — Multimodal LSTM
-Berbasis Data Historis & Sentimen Berita Global
-==================================================================
-Jalankan dengan: streamlit run app.py
-
-File yang harus berada di folder yang sama:
-- Model_lstm_oil.keras (atau model_lstm_oil.h5 sebagai fallback)
-- scaler.pkl
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -29,7 +18,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS — tema energi (gelap, aksen emas/oranye)
+# CSS
 # =========================================================
 st.markdown("""
 <style>
@@ -94,7 +83,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =========================================================
-# KONSTANTA — HARUS SAMA PERSIS DENGAN SAAT TRAINING
+# KONSTANTA — Sesuai dengan feature eng yang dilakukan pada training model
 # =========================================================
 FEATURES = [
     'brent_price', 'wti_price', 'dxy_index', 'vix', 'gpr_index',
@@ -110,8 +99,33 @@ SEQ_LEN = 30
 
 MODEL_PATH_KERAS = "Model_lstm_oil.keras"
 MODEL_PATH_H5 = "model_lstm_oil.h5"
-MODEL_WEIGHTS_PATH = "model_weights.weights.h5"  # cara paling aman lintas versi Keras
+MODEL_WEIGHTS_PATH = "model_weights.weights.h5"  # load weighs 
 SCALER_PATH = "scaler.pkl"
+
+# =========================================================
+# LEGENDA EVENT SEVERITY (1-10)
+# Dikalibrasi dari pola nyata pada dataset event geopolitik.
+# Skala 1-5 diekstrapolasi (dataset contoh hanya memuat event besar
+# berseverity 6-10); anggap sebagai panduan relatif, bukan angka baku.
+# =========================================================
+SEVERITY_LEGEND = {
+    1:  ("Sangat Rendah", "Berita rutin pasar, tanpa gangguan pasokan nyata"),
+    2:  ("Sangat Rendah", "Rumor/ketegangan kecil, dampak harga minimal"),
+    3:  ("Rendah",        "Friksi diplomatik lokal, tidak memengaruhi ekspor"),
+    4:  ("Rendah",        "Sanksi simbolis atau pembicaraan OPEC rutin"),
+    5:  ("Sedang",        "Krisis diplomatik regional tanpa gangguan produksi"),
+    6:  ("Sedang",        "Contoh: krisis diplomatik Qatar, pencabutan sanksi nuklir Iran"),
+    7:  ("Tinggi",        "Contoh: tumpahan minyak Deepwater Horizon, intervensi militer Yaman, krisis energi global"),
+    8:  ("Tinggi",        "Contoh: embargo minyak Iran/Rusia oleh UE, aneksasi Crimea, blokade Terusan Suez, serangan Laut Merah"),
+    9:  ("Sangat Tinggi", "Contoh: Perang Sipil Libya, pembunuhan Jenderal Soleimani, larangan impor minyak Rusia AS, Perang Israel-Hamas"),
+    10: ("Ekstrem",       "Contoh: serangan fasilitas Aramco Abqaiq, invasi Rusia ke Ukraina, harga WTI negatif, penutupan Selat Hormuz"),
+}
+
+
+def severity_description(value):
+    """Kembalikan (label, deskripsi) severity terdekat untuk nilai slider."""
+    key = int(round(max(1, min(10, value))))
+    return SEVERITY_LEGEND[key]
 
 
 def build_model_architecture(n_timesteps=SEQ_LEN, n_features=len(FEATURES)):
@@ -140,7 +154,7 @@ def build_model_architecture(n_timesteps=SEQ_LEN, n_features=len(FEATURES)):
 def load_lstm_model():
     from tensorflow.keras.models import load_model
 
-    # 1) Cara paling robust lintas-versi: bangun ulang arsitektur, muat bobot saja
+    # 1) lintas-versi untuj membangun ulang arsitektur, muat bobot/weightsnya aja
     if os.path.exists(MODEL_WEIGHTS_PATH):
         try:
             model = build_model_architecture()
@@ -149,7 +163,7 @@ def load_lstm_model():
         except Exception as e:
             st.warning(f"Gagal memuat model_weights.weights.h5: {e}")
 
-    # 2) Fallback: coba load_model utuh (rawan gagal jika versi Keras beda)
+    # 2) Fallback: coba load_model utuh (ini baris paling PR karena kalo kerasnya tidak compatible versinya bsa bikin error)
     if os.path.exists(MODEL_PATH_KERAS):
         try:
             return load_model(MODEL_PATH_KERAS), MODEL_PATH_KERAS
@@ -190,7 +204,7 @@ def run_inference(df_feat, model, scaler):
     dummy[:, TARGET_COL_INDEX] = preds_scaled
     preds_inverse = scaler.inverse_transform(dummy)[:, TARGET_COL_INDEX]
 
-    # prediksi[i] adalah ramalan untuk baris (i + SEQ_LEN), yaitu t+1 setelah window
+    # prediksi[i] berfungsi sebagai ramalan untuk baris (i + SEQ_LEN), yaitu t+1 setelah window
     pred_dates = df_feat.index[SEQ_LEN:]
     actual_vals = df_feat['brent_price'].values[SEQ_LEN:]
 
@@ -329,6 +343,9 @@ def recursive_forecast(seed_df_raw, days_ahead, model, scaler,
 with st.sidebar:
     st.header("⚙️ Panel Kontrol")
 
+    st.page_link("pages/1_Panduan_Istilah.py", label="Panduan Istilah & Parameter", icon="📖")
+    st.markdown("---")
+
     mode = st.radio(
         "Sumber data",
         ["📤 Upload CSV", "✍️ Input Manual"],
@@ -460,13 +477,18 @@ else:
             vix_in = st.number_input("VIX", min_value=0.0, value=15.0, step=0.5)
         with c3:
             gpr_in = st.number_input("GPR Index (risiko geopolitik)", min_value=0.0, value=100.0, step=1.0)
-            event_severity_in = st.slider("Asumsi Severity Event", 0.0, 10.0, 0.0, 0.5)
+            event_severity_in = st.slider(
+                "Asumsi Severity Event", 0.0, 10.0, 0.0, 1.0,
+                help="Skala 1-10 seberapa parah dampak event geopolitik. Lihat 📖 Panduan Istilah untuk contoh tiap level."
+            )
+            sev_label, sev_desc = severity_description(event_severity_in)
+            st.caption(f"**{sev_label}** — {sev_desc}")
             event_flag_in = st.checkbox("Asumsikan ada event geopolitik aktif")
 
         submitted = st.form_submit_button("🔮 Bangun Skenario")
 
     # Simpan ke session_state supaya skenario TETAP ada walau ada rerun lain
-    # (misalnya saat tombol "Jalankan Ramalan ke Depan" di bawah diklik).
+    # (misalnya saat user menekan tombol "Jalankan Ramalan ke Depan" di bawah).
     if submitted:
         manual_values = {
             'brent_price': brent_price_in,
@@ -521,7 +543,7 @@ else:
     )
 
 # =========================================================
-# RAMALAN BULAN DEPAN (rekursif, tersedia di kedua mode)
+# RAMALAN BULAN DEPAN (rekursif)
 # =========================================================
 st.markdown('<div class="section-title">🔮 Ramalan ke Depan (Rekursif)</div>', unsafe_allow_html=True)
 st.markdown("""
@@ -532,23 +554,52 @@ besar potensi errornya menumpuk — anggap ini sebagai <b>skenario</b>, bukan an
 </div>
 """, unsafe_allow_html=True)
 
+st.page_link("pages/1_Panduan_Istilah.py", label="📖 Belum paham istilah di bawah ini? Baca Panduan Istilah", icon="📖")
+
 fc1, fc2, fc3, fc4, fc5 = st.columns(5)
 with fc1:
-    days_ahead = st.number_input("Horizon (hari)", min_value=1, max_value=90, value=30, step=1)
+    days_ahead = st.number_input(
+        "Horizon (hari)", min_value=1, max_value=90, value=30, step=1,
+        help="Jumlah hari ke depan yang diramalkan, dihitung berantai (rekursif) dari data terakhir. Lihat 📖 Panduan Istilah untuk detail."
+    )
 with fc2:
-    wti_trend = st.slider("Tren WTI (%/hari)", -2.0, 2.0, 0.0, 0.1)
+    wti_trend = st.slider(
+        "Tren WTI (%/hari)", -2.0, 2.0, 0.0, 0.1,
+        help="Asumsi perubahan harga minyak WTI per hari (%). 0% = harga WTI diasumsikan stagnan."
+    )
 with fc3:
-    dxy_trend = st.slider("Tren DXY (%/hari)", -2.0, 2.0, 0.0, 0.1)
+    dxy_trend = st.slider(
+        "Tren DXY (%/hari)", -2.0, 2.0, 0.0, 0.1,
+        help="Asumsi perubahan Indeks Dolar AS per hari (%). Dolar menguat biasanya menekan harga minyak."
+    )
 with fc4:
-    vix_trend = st.slider("Tren VIX (%/hari)", -5.0, 5.0, 0.0, 0.1)
+    vix_trend = st.slider(
+        "Tren VIX (%/hari)", -5.0, 5.0, 0.0, 0.1,
+        help="Asumsi perubahan 'indeks ketakutan' pasar saham AS per hari (%). Naik = investor makin cemas."
+    )
 with fc5:
-    gpr_trend = st.slider("Tren GPR (%/hari)", -5.0, 5.0, 0.0, 0.1)
+    gpr_trend = st.slider(
+        "Tren GPR (%/hari)", -5.0, 5.0, 0.0, 0.1,
+        help="Asumsi perubahan Indeks Risiko Geopolitik per hari (%). Naik = ketegangan geopolitik meningkat."
+    )
 
 fc6, fc7 = st.columns(2)
 with fc6:
-    assumed_severity = st.slider("Asumsi severity event ke depan", 0.0, 10.0, 0.0, 0.5)
+    assumed_severity = st.slider(
+        "Asumsi severity event ke depan", 0.0, 10.0, 0.0, 1.0,
+        help="Skala 1-10 seberapa parah dampak event geopolitik yang diasumsikan terjadi selama horizon ramalan."
+    )
+    sev_label2, sev_desc2 = severity_description(assumed_severity)
+    st.caption(f"**{sev_label2}** — {sev_desc2}")
 with fc7:
     assumed_flag = st.checkbox("Asumsikan event geopolitik terus aktif selama horizon")
+
+with st.expander(" Legenda severity 1-10 "):
+    legend_rows = [
+        {"Severity": k, "Kategori": v[0], "Contoh / Deskripsi": v[1]}
+        for k, v in SEVERITY_LEGEND.items()
+    ]
+    st.dataframe(pd.DataFrame(legend_rows), use_container_width=True, hide_index=True)
 
 seed_for_forecast = df_feat if mode == "📤 Upload CSV" else manual_seed_df
 
@@ -594,7 +645,7 @@ if st.session_state.get('forecast_df') is not None:
     )
 
 # =========================================================
-# TABS (analisis historis — hanya tersedia di mode Upload CSV)
+# TABS (analisis historis)
 # =========================================================
 if mode != "📤 Upload CSV":
     st.stop()
