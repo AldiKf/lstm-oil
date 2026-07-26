@@ -19,176 +19,222 @@ st.markdown("""
         border-radius: 8px;
         margin: 0.9rem 0;
     }
-    .term-title { font-size: 1.15rem; font-weight: 700; color: #f2f2f2; margin-bottom: 0.3rem; }
+    .term-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #f2f2f2;
+        margin-bottom: 0.4rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="glossary-hero">
-    <h2>📖 Panduan Istilah & Parameter Input</h2>
-    <p style="color:#d4a017;">Penjelasan setiap kontrol yang ada di dashboard prediksi harga Brent, dalam bahasa yang mudah dipahami.</p>
+    <h2>📖 Panduan Penggunaan Dashboard</h2>
+    <p style="color:#d4a017;">
+        Halaman ini menjelaskan arti setiap parameter yang digunakan pada dashboard prediksi harga minyak mentah Brent agar lebih mudah dipahami.
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-Dashboard ini memakai istilah-istilah pasar keuangan/geopolitik yang mungkin belum familiar.
-Halaman ini menjelaskan **apa arti tiap input**, **kenapa dibutuhkan**, dan **apa efeknya** ke hasil prediksi.
-""")
+st.info("💡 **Tips:** Jika baru pertama kali menggunakan dashboard, cobalah Horizon **7 hari** dengan seluruh parameter tren bernilai **0%**. Setelah itu ubah satu parameter secara bertahap untuk melihat pengaruhnya terhadap hasil prediksi.")
 
 # =========================================================
-# BAGIAN 1 — RAMALAN KE DEPAN
+# PARAMETER
 # =========================================================
-st.markdown("## 🔮 Parameter Ramalan ke Depan")
+st.markdown("## 🔮 Parameter Ramalan")
 
 st.markdown("""
 <div class="term-card">
-<div class="term-title">📅 Horizon (hari)</div>
-Jumlah hari ke depan yang ingin diramalkan, dihitung mulai dari hari terakhir di data kamu.
-Contoh: kalau data terakhir tanggal 10 Juli dan horizon diisi <b>30</b>, dashboard akan
-meramalkan harga setiap hari dari 11 Juli sampai 9 Agustus.
-<br><br>
-<b>Cara kerjanya:</b> model ini aslinya cuma bisa menebak <i>satu hari ke depan</i> (t+1).
-Untuk meramalkan lebih dari satu hari, dashboard memakai hasil tebakan hari ini sebagai
-"data pura-pura" untuk menebak hari berikutnya, dan seterusnya secara berantai.
-<br><br>
-<b>Efek ke akurasi:</b> makin besar angka horizon, makin panjang rantai tebak-menebaknya,
-makin besar juga potensi errornya menumpuk. Horizon 7 hari jauh lebih bisa dipercaya
-dibanding horizon 30 atau 90 hari — anggap horizon panjang sebagai <b>skenario kasar</b>,
-bukan ramalan presisi.
-</div>
-""", unsafe_allow_html=True)
+<div class="term-title">📅 Horizon (Hari)</div>
 
-st.markdown("""
-<div class="term-card">
-<div class="term-title">🛢️ Tren WTI (%/hari)</div>
-<b>WTI (West Texas Intermediate)</b> adalah harga acuan minyak mentah versi Amerika —
-"saudara" dari harga Brent yang jadi fokus utama dashboard ini. Brent dan WTI biasanya
-bergerak searah karena sama-sama dipengaruhi permintaan/pasokan minyak global.
-<br><br>
-Karena model butuh tahu harga WTI di hari-hari mendatang (tapi kita tidak punya data
-itu), kamu diminta memberi <b>asumsi tren harian</b> dalam persen:
+Menentukan berapa hari ke depan yang ingin diprediksi.
+
+<b>Contoh:</b>
+
 <ul>
-<li><b>0%</b> = asumsi harga WTI stagnan (flat), tidak naik/turun</li>
-<li><b>+0.5%</b> = asumsi WTI naik 0.5% setiap hari (dalam 30 hari, itu bisa berarti
-kenaikan total sekitar 16%, karena efeknya berbunga majemuk/compounding)</li>
-<li><b>-0.5%</b> = asumsi WTI turun 0.5% setiap hari</li>
+<li>Data terakhir: <b>10 Juli</b></li>
+<li>Horizon: <b>30 hari</b></li>
+<li>Hasil prediksi: <b>11 Juli – 9 Agustus</b></li>
 </ul>
-Gunakan nilai kecil (biasanya di kisaran -0.5% s/d +0.5%) — angka harian sekecil apa pun
-akan membesar drastis kalau horizonnya panjang.
-</div>
-""", unsafe_allow_html=True)
 
-st.markdown("""
-<div class="term-card">
-<div class="term-title">💵 Tren DXY (%/hari)</div>
-<b>DXY (US Dollar Index)</b> mengukur kekuatan Dolar AS dibanding sekeranjang mata uang
-utama dunia (Euro, Yen, dll). Ini penting karena minyak dunia diperdagangkan pakai Dolar —
-kalau Dolar menguat (DXY naik), minyak biasanya jadi lebih mahal bagi negara-negara dengan
-mata uang lain, sehingga permintaan turun dan <b>harga minyak cenderung tertekan (turun)</b>.
-Hubungannya sering berkebalikan (inverse) dengan harga minyak.
+Model hanya memprediksi <b>satu hari ke depan</b>. Untuk menghasilkan prediksi beberapa hari sekaligus, hasil prediksi hari sebelumnya akan digunakan sebagai input untuk hari berikutnya (<i>recursive forecasting</i>).
+
 <br><br>
-Slider ini mengasumsikan seberapa persen DXY berubah tiap hari selama periode ramalan.
-Sama seperti Tren WTI, gunakan nilai kecil karena efeknya majemuk (compounding) sepanjang horizon.
+
+<b>Catatan:</b> Semakin panjang horizon, semakin besar kemungkinan akumulasi error. Prediksi 7 hari umumnya lebih akurat dibandingkan prediksi 30 atau 90 hari.
+
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="term-card">
-<div class="term-title">📉 Tren VIX (%/hari)</div>
-<b>VIX</b> sering dijuluki "indeks ketakutan" (fear index) Wall Street — mengukur seberapa
-besar investor memperkirakan gejolak (volatilitas) pasar saham AS dalam waktu dekat.
-VIX tinggi = investor cemas/panik, biasanya muncul bareng krisis ekonomi atau geopolitik,
-dan sering diikuti gejolak harga komoditas termasuk minyak.
-<br><br>
-Slider ini mengasumsikan tren harian VIX ke depan. Nilai positif berarti kamu
-mengasumsikan kecemasan pasar meningkat; nilai negatif berarti pasar diasumsikan makin tenang.
+<div class="term-title">🛢️ Tren WTI (% per Hari)</div>
+
+WTI (<i>West Texas Intermediate</i>) merupakan salah satu harga acuan minyak mentah dunia dan umumnya bergerak searah dengan harga Brent.
+
+Karena harga WTI pada masa depan belum diketahui, Anda dapat menentukan asumsi perubahan hariannya.
+
+<ul>
+<li><b>0%</b> → Harga tetap.</li>
+<li><b>+0.5%</b> → Harga naik 0,5% setiap hari.</li>
+<li><b>-0.5%</b> → Harga turun 0,5% setiap hari.</li>
+</ul>
+
+<b>Saran:</b> Gunakan nilai kecil (sekitar <b>-0.5% hingga +0.5%</b>) agar skenario tetap realistis.
+
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="term-card">
-<div class="term-title">🌍 Tren GPR (%/hari)</div>
-<b>GPR (Geopolitical Risk Index)</b> adalah indeks yang mengukur tingkat ketegangan
-geopolitik global (perang, sanksi, konflik, dll.) berdasarkan analisis pemberitaan dunia.
-GPR tinggi biasanya berkorelasi dengan risiko gangguan pasokan minyak — jadi bisa
-mendorong harga naik.
-<br><br>
-Slider ini mengasumsikan tren harian index tersebut ke depan. Kalau kamu memperkirakan
-akan ada eskalasi konflik/ketegangan geopolitik, gunakan tren positif; kalau situasi
-diperkirakan mereda, gunakan tren negatif.
+<div class="term-title">💵 Tren DXY (% per Hari)</div>
+
+DXY (<i>US Dollar Index</i>) menunjukkan kekuatan Dolar AS terhadap mata uang utama dunia.
+
+Secara umum:
+
+<ul>
+<li>DXY naik → Harga minyak cenderung turun.</li>
+<li>DXY turun → Harga minyak cenderung naik.</li>
+</ul>
+
+Masukkan asumsi perubahan DXY setiap hari selama periode prediksi.
+
 </div>
 """, unsafe_allow_html=True)
 
 st.markdown("""
 <div class="term-card">
-<div class="term-title">⚠️ Severity & Status Event Geopolitik</div>
-Dua kontrol tambahan yang mengasumsikan <b>ada/tidaknya kejadian geopolitik besar</b>
-(perang, sanksi, serangan infrastruktur, dll.) selama periode ramalan, dan seberapa
-parah dampaknya (skala 1-10). Lihat tabel skala lengkapnya di bagian bawah halaman ini.
+<div class="term-title">📉 Tren VIX (% per Hari)</div>
+
+VIX atau <i>Fear Index</i> menggambarkan tingkat ketidakpastian pasar.
+
+<ul>
+<li>VIX naik → Pasar lebih tidak stabil.</li>
+<li>VIX turun → Kondisi pasar lebih tenang.</li>
+</ul>
+
+Gunakan slider untuk menentukan asumsi perubahan VIX selama periode prediksi.
+
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="term-card">
+<div class="term-title">🌍 Tren GPR (% per Hari)</div>
+
+GPR (<i>Geopolitical Risk Index</i>) mengukur tingkat risiko geopolitik global, seperti perang, konflik, maupun sanksi ekonomi.
+
+Secara umum:
+
+<ul>
+<li>GPR naik → Risiko geopolitik meningkat sehingga harga minyak berpotensi naik.</li>
+<li>GPR turun → Kondisi geopolitik lebih stabil.</li>
+</ul>
+
+Masukkan asumsi perubahan GPR setiap hari selama periode prediksi.
+
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="term-card">
+<div class="term-title">⚠️ Status & Tingkat Keparahan Kejadian Geopolitik</div>
+
+Digunakan untuk mensimulasikan adanya kejadian geopolitik selama periode prediksi.
+
+<ul>
+<li><b>Status Event</b> → Menentukan apakah terjadi kejadian geopolitik atau tidak.</li>
+<li><b>Severity (1–10)</b> → Menunjukkan tingkat keparahan dampak kejadian.</li>
+</ul>
+
+Semakin tinggi nilai <b>Severity</b>, semakin besar pengaruhnya terhadap hasil prediksi.
+
 </div>
 """, unsafe_allow_html=True)
 
 # =========================================================
-# BAGIAN 2 — SEVERITY LEGEND
+# SEVERITY
 # =========================================================
-st.markdown("## ⚠️ Skala Severity Event Geopolitik (1-10)")
+st.markdown("## ⚠️ Skala Severity Kejadian Geopolitik")
+
 st.markdown("""
-Dikalibrasi dari pola event nyata dalam dataset riset ini. Skala 1-5 diekstrapolasi
-sebagai panduan relatif karena dataset contoh hanya mencatat event-event besar
-(severity 6 ke atas) — bukan angka baku, tapi cukup untuk memberi rasa skala.
+Skala berikut digunakan untuk menggambarkan tingkat keparahan suatu kejadian geopolitik.
+Semakin tinggi nilainya, semakin besar potensi dampaknya terhadap pasar minyak.
 """)
 
 SEVERITY_LEGEND = {
-    1:  ("Sangat Rendah", "Berita rutin pasar, tanpa gangguan pasokan nyata"),
-    2:  ("Sangat Rendah", "Rumor/ketegangan kecil, dampak harga minimal"),
-    3:  ("Rendah",        "Friksi diplomatik lokal, tidak memengaruhi ekspor"),
-    4:  ("Rendah",        "Sanksi simbolis atau pembicaraan OPEC rutin"),
-    5:  ("Sedang",        "Krisis diplomatik regional tanpa gangguan produksi"),
-    6:  ("Sedang",        "Contoh: krisis diplomatik Qatar, pencabutan sanksi nuklir Iran"),
-    7:  ("Tinggi",        "Contoh: tumpahan minyak Deepwater Horizon, intervensi militer Yaman, krisis energi global"),
-    8:  ("Tinggi",        "Contoh: embargo minyak Iran/Rusia oleh UE, aneksasi Crimea, blokade Terusan Suez, serangan Laut Merah"),
-    9:  ("Sangat Tinggi", "Contoh: Perang Sipil Libya, pembunuhan Jenderal Soleimani, larangan impor minyak Rusia AS, Perang Israel-Hamas"),
-    10: ("Ekstrem",       "Contoh: serangan fasilitas Aramco Abqaiq, invasi Rusia ke Ukraina, harga WTI negatif, penutupan Selat Hormuz"),
+    1: ("Sangat Rendah","Berita rutin pasar tanpa dampak signifikan"),
+    2: ("Sangat Rendah","Rumor atau ketegangan kecil"),
+    3: ("Rendah","Friksi diplomatik lokal"),
+    4: ("Rendah","Sanksi ringan atau pertemuan OPEC rutin"),
+    5: ("Sedang","Krisis diplomatik regional"),
+    6: ("Sedang","Krisis Qatar, pencabutan sanksi Iran"),
+    7: ("Tinggi","Deepwater Horizon, konflik Yaman"),
+    8: ("Tinggi","Embargo minyak, blokade Terusan Suez"),
+    9: ("Sangat Tinggi","Perang Libya, Israel–Hamas"),
+    10:("Ekstrem","Invasi Rusia–Ukraina, serangan Aramco")
 }
+
 legend_df = pd.DataFrame(
-    [{"Severity": k, "Kategori": v[0], "Contoh / Deskripsi": v[1]} for k, v in SEVERITY_LEGEND.items()]
+    [{"Severity":k,"Kategori":v[0],"Contoh":v[1]}
+     for k,v in SEVERITY_LEGEND.items()]
 )
-st.dataframe(legend_df, use_container_width=True, hide_index=True)
+
+st.dataframe(legend_df,use_container_width=True,hide_index=True)
 
 # =========================================================
-# BAGIAN 3 — MODE INPUT
+# INPUT MODE
 # =========================================================
-st.markdown("## 📥 Dua Mode Sumber Data")
+st.markdown("## 📥 Mode Input Data")
 
-col1, col2 = st.columns(2)
+col1,col2 = st.columns(2)
+
 with col1:
     st.markdown("""
     <div class="term-card">
     <div class="term-title">📤 Upload CSV</div>
-    Memakai data historis riil (harga, indikator makro, event) yang kamu unggah.
-    Model membaca 30 hari terakhir dari data itu sebagai titik awal ramalan.
-    <b>Lebih akurat</b> karena pola lag/volatilitas dihitung dari data sungguhan.
+
+    Gunakan data historis yang Anda miliki sebagai dasar prediksi.
+
+    Model akan membaca <b>30 hari terakhir</b> dari data tersebut sehingga pola harga, lag, dan volatilitas dapat dimanfaatkan secara optimal.
+
+    <br><br>
+
+    <b>Cocok digunakan jika memiliki data historis terbaru.</b>
+
     </div>
-    """, unsafe_allow_html=True)
+    """,unsafe_allow_html=True)
+
 with col2:
     st.markdown("""
     <div class="term-card">
     <div class="term-title">✍️ Input Manual</div>
-    Kamu memasukkan kondisi pasar hari ini secara manual (harga, DXY, VIX, GPR, dll.),
-    lalu dashboard membuat skenario "flat" 30 hari dari angka itu sebagai titik awal.
-    <b>Lebih cepat</b> tapi jauh lebih kasar karena tidak memakai pola historis asli.
-    </div>
-    """, unsafe_allow_html=True)
 
+    Masukkan nilai Brent, WTI, DXY, VIX, GPR, dan variabel lainnya secara manual untuk membuat skenario prediksi.
+
+    Mode ini cocok digunakan untuk melakukan simulasi <i>"bagaimana jika"</i> tanpa perlu mengunggah data historis.
+
+    </div>
+    """,unsafe_allow_html=True)
+
+# =========================================================
+# PENUTUP
+# =========================================================
 st.markdown("---")
+
 st.markdown("""
 <div class="term-card">
-<div class="term-title">💡 Ringkasnya</div>
-Ramalan ke depan di dashboard ini adalah <b>simulasi skenario</b>, bukan prediksi pasti.
-Semakin jauh horizonnya dan semakin ekstrem asumsi tren yang kamu masukkan, semakin besar
-kemungkinan hasilnya melenceng dari kenyataan. Gunakan sebagai alat bantu eksplorasi
-"bagaimana jika", bukan sebagai patokan keputusan finansial.
+<div class="term-title">💡 Ringkasan</div>
+
+Dashboard ini dirancang sebagai <b>alat simulasi dan analisis skenario</b>, bukan untuk memberikan kepastian harga minyak di masa depan.
+
+Hasil prediksi sangat dipengaruhi oleh asumsi parameter yang dimasukkan. Semakin panjang horizon dan semakin ekstrem nilai parameter yang digunakan, semakin besar kemungkinan prediksi menyimpang dari kondisi sebenarnya.
+
+Gunakan dashboard ini sebagai pendukung analisis dan eksplorasi skenario, bukan sebagai satu-satunya dasar dalam pengambilan keputusan.
+
 </div>
-""", unsafe_allow_html=True)
+""",unsafe_allow_html=True)
 
 st.page_link("app.py", label="⬅️ Kembali ke Dashboard", icon="🛢️")
